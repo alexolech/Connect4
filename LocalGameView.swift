@@ -137,7 +137,7 @@ struct LocalGameView: View {
             
             Button(action: {
                 gameLogic.reset()
-                display = "Red's Turn"
+                display = "Red's turn"
             }){
                 Text("Reset Game").font(.title)
             }.padding(20)

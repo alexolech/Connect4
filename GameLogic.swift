@@ -130,11 +130,13 @@ class GameLogic: ObservableObject{
             print("\(turn) Win horizontal")
             
             var mostLeft = colomnPos!
-            for step in (-3 ... -1){
+            for step in (1...3){
                 //not out of board
-                if (colomnPos! - (step * -1)) >= 0{
-                    if matrix[colomns[colomnPos!-(step * -1)]]![pos] == turn{
-                        mostLeft = colomnPos!-(step * -1)
+                if (colomnPos! - (step)) >= 0{
+                    if matrix[colomns[colomnPos!-(step)]]![pos] == turn{
+                        mostLeft = colomnPos!-(step)
+                    }
+                    else{
                         break
                     }
                 }
@@ -154,12 +156,14 @@ class GameLogic: ObservableObject{
             
             var mostLeft = colomnPos!
             var mostDown = pos
-            for step in (-3 ... -1){
+            for step in (1...3){
                 //not out of board
-                if (colomnPos! + (step * -1)) <= matrix.count-1 && (pos - (step * -1)) >= 0{
-                    if matrix[colomns[colomnPos!+(step * -1)]]![pos-(step * -1)] == turn{
-                        mostLeft = colomnPos!+(step * -1)
-                        mostDown = pos-(step * -1)
+                if (colomnPos! + (step)) <= matrix.count-1 && (pos - (step)) >= 0{
+                    if matrix[colomns[colomnPos!+(step)]]![pos-(step)] == turn{
+                        mostLeft = colomnPos!+(step)
+                        mostDown = pos-(step)
+                    }
+                    else{
                         break
                     }
                 }
@@ -179,12 +183,14 @@ class GameLogic: ObservableObject{
             
             var mostRight = colomnPos!
             var mostDown = pos
-            for step in (-3 ... -1){
+            for step in (1...3){
                 //not out of board
-                if (colomnPos! - (step * -1)) >= 0 && (pos - (step * -1)) >= 0{
-                    if matrix[colomns[colomnPos!-(step * -1)]]![pos-(step * -1)] == turn{
-                        mostRight = colomnPos!-(step * -1)
-                        mostDown = pos-(step * -1)
+                if (colomnPos! - (step)) >= 0 && (pos - (step)) >= 0{
+                    if matrix[colomns[colomnPos!-(step)]]![pos-(step)] == turn{
+                        mostRight = colomnPos!-(step)
+                        mostDown = pos-(step)
+                    }
+                    else{
                         break
                     }
                 }
