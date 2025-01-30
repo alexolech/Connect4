@@ -9,9 +9,6 @@ import Foundation
 
 import FirebaseCore
 import FirebaseFirestore
-import FirebaseFirestoreSwift
-
-
 
 class DatabaseConnection: ObservableObject{
     
@@ -22,6 +19,7 @@ class DatabaseConnection: ObservableObject{
     
     
     var openLobbies: [Lobby] = []
+    
     
     func gameOver(game: Lobby){
         let lobby = db.collection("lobbies").document(game.id!)
@@ -189,6 +187,10 @@ class DatabaseConnection: ObservableObject{
     
     func sendLobbies() -> [Lobby]{
         return self.openLobbies
+    }
+    
+    func resetLobby(){
+        //use after game concludes to allow new players to play in lobby
     }
     
     func getOpenLobbies(){

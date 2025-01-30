@@ -34,9 +34,9 @@ struct connect4App: App {
     var body: some Scene {
         WindowGroup {
             //ContentView()
-            LocalGameView().environmentObject(gameLogic)
+            //LocalGameView().environmentObject(gameLogic)
         
-            //LobbySelectView().environmentObject(gameLogic)
+            LobbySelectView().environmentObject(gameLogic)
         }
     }
 }
