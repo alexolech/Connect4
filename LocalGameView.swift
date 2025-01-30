@@ -45,7 +45,9 @@ struct LocalGameView: View {
     var body: some View {
         VStack{
             Text("Connect 4 to win").font(.title).padding(20)
-            Text(display).font(.title2).foregroundColor(gameLogic.turn.toColor())
+            Text(display).font(.title2)
+                //.foregroundColor(gameLogic.turn.toColor())
+                .foregroundColor(Datasource.shared.turn.toColor())
             VStack{
                 HStack{
                     ForEach(1..<8) { row in
@@ -56,7 +58,7 @@ struct LocalGameView: View {
                                 Button(action: {
                                     
                                     if (!pieceFalling){
-                                        playTurn(row: "row\(row)")
+                                        playTurn(row: "colomn\(row)")
                                     }
                                     
                                     //matrix["row\(row)"]?[line] = SlotState.Red
@@ -64,8 +66,12 @@ struct LocalGameView: View {
                                 })
                                 {
                                     //slot =
-                                    Text("O").foregroundColor(gameLogic.matrix["row\(row)"]?[line].toColor())
-                                    .font(.title).bold().frame(maxWidth: UIScreen.main.bounds.width/8.75, maxHeight: UIScreen.main.bounds.width/8.75 ).background(gameLogic.backgrounds["row\(row)"]?[line].toColor())}
+                                    //Text("O").foregroundColor(gameLogic.matrix["row\(row)"]?[line].toColor())
+                                    Text("O").foregroundColor(Datasource.shared.board["colomn\(row)"]?[line].toColor())
+                                    .font(.title).bold().frame(maxWidth: UIScreen.main.bounds.width/8.75, maxHeight: UIScreen.main.bounds.width/8.75 )//.background(gameLogic.backgrounds["row\(row)"]?[line].toColor())
+                                    .background(Datasource.shared.backgrounds["colomn\(row)"]?[line].toColor())
+                                    
+                                }.background(Color.cyan)
                                     //currentRow.append(slot)
                             }
                         }
@@ -142,7 +148,9 @@ struct LocalGameView: View {
                 Text("Reset Game").font(.title)
             }.padding(20)
             Toggle("Playing across table", isOn: self.$across).padding(.leading,50).padding(.trailing,50)
-        }.rotationEffect(Angle(degrees: Double(( ( (self.across ? 1: 0 ) * 360) / gameLogic.turn.rawValue)))) //maybe not good
+        }.rotationEffect(Angle(degrees: Double(( ( (self.across ? 1: 0 ) * 360) /
+                                                 Datasource.shared.turn))))
+                                                 //gameLogic.turn.rawValue)))) //maybe not good
         
         
     }
@@ -157,30 +165,44 @@ struct LocalGameView: View {
                 //((Double(spot+1))*fallSpeed)
                 //print(fallSpeed * Double(counter))
                 DispatchQueue.main.asyncAfter(deadline: .now() +  fallSpeed * Double(counter) ) {
-                    gameLogic.matrix[row]![spot] = gameLogic.turn
+                    
+                    //gameLogic.matrix[row]![spot] = gameLogic.turn
+                    Datasource.shared.board[row]![spot] = Datasource.shared.turn
+                    //print("check 1")
+                    
                     DispatchQueue.main.asyncAfter(deadline: .now() + (fallSpeed * Double(counter))/3 ) {
                         if spot == pos{
                             //print("Landed")
                             //gameLogic.matrix[row]![pos] = gameLogic.turn
                             gameLogic.checkIfWin(colomn: row, pos: pos)
-                            display = "\(gameLogic.turn)'s turn"
+                            
+                            //display = "\(gameLogic.turn)'s turn"
+                            display = "Player \(Datasource.shared.turn)'s turn"
+                            
                             if gameLogic.movesMade >= 42{
                                 display = "It's a Tie"
                                 //gameLogic.turn = SlotState.Empty
                             }
                             
-                            if gameLogic.winner != nil{
-                                display = "\(gameLogic.winner!) Wins!"
+                            //if gameLogic.winner != nil{
+                            if Datasource.shared.winner != nil{
+                                //display = "\(gameLogic.winner!) Wins!"
+                                display = "Player \(Datasource.shared.winner!) Wins!"
                             }
                             pieceFalling = false
                             return
                         }
-                        gameLogic.matrix[row]![spot] = SlotState.Empty
+                        
+                        //gameLogic.matrix[row]![spot] = SlotState.Empty
+                        Datasource.shared.board[row]![spot] = 0
+                        //print("check 2")
                     }
                 }
             
             
         }
+        
+        Datasource.shared.turn.endTurn()
         
 //        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
 //            // Put your code which should be executed with a delay here
@@ -195,17 +217,24 @@ struct LocalGameView: View {
     }
     
     func playTurn(row: String){
-        if gameLogic.winner == nil{
-            if let i = gameLogic.matrix[row]!.lastIndex(of: SlotState.Empty) {
+        //if gameLogic.winner == nil{
+        if Datasource.shared.winner == nil{
+            //if let i = gameLogic.matrix[row]!.lastIndex(of: SlotState.Empty) {
+            
+            
+            if let i = Datasource.shared.board[row]!.lastIndex(of: 0) {
                 dropAnimation(row, i)
                 
                 
 //                else{
 //                    //display = "\(gameLogic.turn)'s turn"
 //                }
+                Datasource.shared.board[row]![i] = Datasource.shared.turn
+                
                 //gameLogic.matrix[row]![i] = gameLogic.turn
-                //gameLogic.checkIfWin(colomn: row, pos: i)
+                gameLogic.checkIfWin(colomn: row, pos: i)
             }
+            
         }
         
         

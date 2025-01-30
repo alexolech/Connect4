@@ -7,6 +7,18 @@
 
 import Foundation
 
+extension Int{
+    mutating func endTurn(){
+        switch self{
+        case 1:
+            self = 2
+        case 2:
+            self = 1
+        default: break
+        }
+    }
+}
+
 enum SlotState: Int{
     
     case Empty = 0

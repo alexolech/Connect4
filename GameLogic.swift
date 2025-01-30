@@ -6,17 +6,38 @@
 //
 
 import Foundation
+import FirebaseCore
+import FirebaseFirestore
 
+@MainActor
 class GameLogic: ObservableObject{
+    
+    @Published var gameData = Datasource.shared
+    @Published var openLobbies: [Lobby] = []
+    
+    var firestoreLinked = false
+    
+    var database: DatabaseConnection? {
+        get{
+            if Datalink.shared.firebaseLinked{
+                return DatabaseConnection()
+            }
+            else{
+                return nil
+            }
+        }
+    }
     
     @Published var turn: SlotState = SlotState.Red
     @Published var winner: SlotState? = nil
-    
+    @Published var display: String = "Player 1's turn"
+
+    var pieceFalling = false
     var movesMade: Int = 0
     
-    @Published var backgrounds: [String: [Selected]] = ["row1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
+    @Published var backgrounds = ["colomn1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
     
-    var colomns = ["row1", "row2", "row3", "row4", "row5", "row6", "row7"]
+    var colomns = ["colomn1", "colomn2", "colomn3", "colomn4", "colomn5", "colomn6", "colomn7"]
     
     @Published var matrix: [String: [SlotState]] = ["row1": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row2": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row3": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row4": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row5": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row6": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row7": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty]]
     
@@ -36,13 +57,98 @@ class GameLogic: ObservableObject{
     var downLeft:Int? = nil
     var downRight:Int? = nil
     
+    private func dropAnimation(_ row: String, _ pos: Int){
+        pieceFalling = true
+        let fallSpeed = 0.025
+        var counter = 0
+        for spot in (0...pos){
+            counter += 1
+                //fallSpeed += Double(spot)/Double(pos-spot)
+                //((Double(spot+1))*fallSpeed)
+                //print(fallSpeed * Double(counter))
+                DispatchQueue.main.asyncAfter(deadline: .now() +  fallSpeed * Double(counter) ) {
+                    
+                    //gameLogic.matrix[row]![spot] = gameLogic.turn
+                    Datasource.shared.board[row]![spot] = Datasource.shared.player
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (fallSpeed * Double(counter))/3 ) {
+                        if spot == pos{
+                            //print("Landed")
+                            //gameLogic.matrix[row]![pos] = gameLogic.turn
+                            
+                            
+                            self.checkIfWin(colomn: row, pos: pos)
+                            
+                            //display = "\(gameLogic.turn)'s turn"
+                            //Datasource.shared.display = "Player \(Datasource.shared.player)'s turn"
+                            
+                            if self.movesMade >= 42{
+                                self.display = "It's a Tie"
+                                //gameLogic.turn = SlotState.Empty
+                            }
+                            
+                            //if gameLogic.winner != nil{
+                            if Datasource.shared.winner != nil{
+                                //display = "\(gameLogic.winner!) Wins!"
+                                self.display = "Player \(Datasource.shared.winner!) Wins!"
+                            }
+                            self.pieceFalling = false
+                            self.gameData.madeMove = true
+                            self.gameData.lastMove = [row, "\(pos)"]
+                            self.database!.makeMove(game: self.gameData.lobby!)
+                            print("done drop")
+                            print(Datasource.shared.board)
+                            return
+                        }
+                        
+                        //gameLogic.matrix[row]![spot] = SlotState.Empty
+                        Datasource.shared.board[row]![spot] = 0
+                        
+                    }
+                }
+            
+            
+        }
+        
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+//            // Put your code which should be executed with a delay here
+//            for spot in (0..<pos){
+//                gameLogic.matrix[row]![spot] = gameLogic.turn
+//                gameLogic.matrix[row]![spot] = SlotState.Empty
+//
+//
+//            }
+//        }
+        
+    }
+    
+    func playTurn(row: String){
+        //if gameLogic.winner == nil{
+        if Datasource.shared.winner == nil{
+            //if let i = gameLogic.matrix[row]!.lastIndex(of: SlotState.Empty) {
+            if let i = Datasource.shared.board[row]!.lastIndex(of: 0) {
+                dropAnimation(row, i)
+                
+                
+//                else{
+//                    //display = "\(gameLogic.turn)'s turn"
+//                }
+                //gameLogic.matrix[row]![i] = gameLogic.turn
+                //gameLogic.checkIfWin(colomn: row, pos: i)
+            }
+        }
+        
+        
+        
+    }
+    
     func reset(){
         
         matrix = ["row1": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row2": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row3": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row4": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row5": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row6": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty], "row7": [SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty,SlotState.Empty]]
         
-        backgrounds = ["row1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
+        backgrounds = ["colomn1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
         
         turn = SlotState.Red
+        
         winner = nil
         
         upDownCounter = 1
@@ -123,6 +229,7 @@ class GameLogic: ObservableObject{
             }
             
             winner = turn
+            gameData.database!.gameOver(game: gameData.lobby!)
             return
         }
         if leftRightCounter >= 4{
@@ -133,7 +240,8 @@ class GameLogic: ObservableObject{
             for step in (1...3){
                 //not out of board
                 if (colomnPos! - (step)) >= 0{
-                    if matrix[colomns[colomnPos!-(step)]]![pos] == turn{
+                    //if matrix[colomns[colomnPos!-(step)]]![pos] == turn{
+                    if gameData.board[colomns[colomnPos!-(step)]]![pos] == gameData.turn{
                         mostLeft = colomnPos!-(step)
                     }
                     else{
@@ -148,6 +256,7 @@ class GameLogic: ObservableObject{
             }
             
             winner = turn
+            gameData.database!.gameOver(game: gameData.lobby!)
             return
         }
         if uphillCounter >= 4{
@@ -158,8 +267,10 @@ class GameLogic: ObservableObject{
             var mostDown = pos
             for step in (1...3){
                 //not out of board
-                if (colomnPos! + (step)) <= matrix.count-1 && (pos - (step)) >= 0{
-                    if matrix[colomns[colomnPos!+(step)]]![pos-(step)] == turn{
+                //if (colomnPos! + (step)) <= matrix.count-1 && (pos - (step)) >= 0{
+                if (colomnPos! + (step)) <= gameData.board.count-1 && (pos - (step)) >= 0{
+                    //if matrix[colomns[colomnPos!+(step)]]![pos-(step)] == turn{
+                    if gameData.board[colomns[colomnPos!+(step)]]![pos-(step)] == gameData.turn{
                         mostLeft = colomnPos!+(step)
                         mostDown = pos-(step)
                     }
@@ -175,6 +286,7 @@ class GameLogic: ObservableObject{
             }
             
             winner = turn
+            gameData.database!.gameOver(game: gameData.lobby!)
             return
         }
         if downhillCounter >= 4{
@@ -186,7 +298,8 @@ class GameLogic: ObservableObject{
             for step in (1...3){
                 //not out of board
                 if (colomnPos! - (step)) >= 0 && (pos - (step)) >= 0{
-                    if matrix[colomns[colomnPos!-(step)]]![pos-(step)] == turn{
+                    //if matrix[colomns[colomnPos!-(step)]]![pos-(step)] == turn{
+                    if gameData.board[colomns[colomnPos!-(step)]]![pos-(step)] == gameData.turn{
                         mostRight = colomnPos!-(step)
                         mostDown = pos-(step)
                     }
@@ -202,6 +315,7 @@ class GameLogic: ObservableObject{
             }
             
             winner = turn
+            gameData.database!.gameOver(game: gameData.lobby!)
             return
         }
     
@@ -214,6 +328,7 @@ class GameLogic: ObservableObject{
     //showBoard()
         
     turn.endTurn()
+    //Datasource.shared.turn.endTurn()
         
     }
     
@@ -225,14 +340,15 @@ class GameLogic: ObservableObject{
     }
     
     func resetBackground(){
-        backgrounds = ["row1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "row7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
+        backgrounds = ["colomn1": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn2": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn3": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn4": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn5": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn6": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no], "colomn7": [Selected.no,Selected.no,Selected.no,Selected.no,Selected.no,Selected.no]]
     }
 
     private func checkVertical(_ step:Int, _ colomn:String, _ pos:Int){
         
         //only check down the colomn
         //print("step: \(step) = \(matrix[colomn]![pos+step])")
-        if matrix[colomn]![pos+step] == turn && down != nil{
+        //if matrix[colomn]![pos+step] == turn && down != nil{
+        if gameData.board[colomn]![pos+step] == gameData.turn && down != nil{
             
             upDownCounter += 1
             
@@ -256,7 +372,8 @@ class GameLogic: ObservableObject{
         if (colomnPos + step) <= (colomns.count-1) && right != nil{ //if not out on right
 //            print("step: \(step) = \(matrix[colomns[colomnPos+step]]![pos]), \(turn)")
 //            print(matrix[colomns[colomnPos+step]]![pos] == turn)
-            if matrix[colomns[colomnPos+step]]![pos] == turn{
+            //if matrix[colomns[colomnPos+step]]![pos] == turn{
+            if gameData.board[colomns[colomnPos+step]]![pos] == gameData.turn{
                 leftRightCounter += 1
                 
                 //backgrounds[colomns[colomnPos+step]]![pos] = Selected.yes
@@ -278,7 +395,8 @@ class GameLogic: ObservableObject{
         if (colomnPos - step) >= 0 && left != nil{
 //            print("step: \(step) = \(matrix[colomns[colomnPos-step]]![pos]), \(turn)")
 //            print(matrix[colomns[colomnPos-step]]![pos] == turn)
-            if matrix[colomns[colomnPos-step]]![pos] == turn{
+            //if matrix[colomns[colomnPos-step]]![pos] == turn{
+            if gameData.board[colomns[colomnPos-step]]![pos] == gameData.turn{
                 leftRightCounter += 1
                 
                 //backgrounds[colomns[colomnPos-step]]![pos] = Selected.yes
@@ -303,7 +421,8 @@ class GameLogic: ObservableObject{
             //print("right up = \(colomnPos-step)")
             //up
             if (pos - step) >= 0 && upRight != nil{
-                if matrix[colomns[colomnPos + step]]![pos - step] == turn{
+                //if matrix[colomns[colomnPos + step]]![pos - step] == turn{
+                if gameData.board[colomns[colomnPos + step]]![pos - step] == gameData.turn{
                     uphillCounter += 1
                     
                     //backgrounds[colomns[colomnPos + step]]![pos - step] = Selected.yes
@@ -320,8 +439,11 @@ class GameLogic: ObservableObject{
             }
             
             //down
-            if (pos + step) <= (matrix[colomn]!.count-1) && downRight != nil{
-                if matrix[colomns[colomnPos + step]]![pos + step] == turn{
+            //if (pos + step) <= (matrix[colomn]!.count-1) && downRight != nil{
+            if (pos + step) <= (gameData.board[colomn]!.count-1) && downRight != nil{
+                //if matrix[colomns[colomnPos + step]]![pos + step] == turn{
+                //if matrix[colomns[colomnPos + step]]![pos + step] == turn{
+                if gameData.board[colomns[colomnPos + step]]![pos + step] == gameData.turn{
                     downhillCounter += 1
                     
                     //backgrounds[colomns[colomnPos + step]]![pos + step] = Selected.yes
@@ -344,7 +466,8 @@ class GameLogic: ObservableObject{
             
             //up
             if (pos - step) >= 0 && upLeft != nil{
-                if matrix[colomns[colomnPos - step]]![pos - step] == turn{
+                //if matrix[colomns[colomnPos - step]]![pos - step] == turn{
+                if gameData.board[colomns[colomnPos - step]]![pos - step] == gameData.turn{
                     downhillCounter += 1
                     
                     //backgrounds[colomns[colomnPos - step]]![pos - step] = Selected.yes
@@ -361,8 +484,10 @@ class GameLogic: ObservableObject{
             }
 
             //down
-            if (pos + step) <= (matrix[colomn]!.count-1) && downLeft != nil{
-                if matrix[colomns[colomnPos - step]]![pos + step] == turn{
+            //if (pos + step) <= (matrix[colomn]!.count-1) && downLeft != nil{
+            if (pos + step) <= (gameData.board[colomn]!.count-1) && downLeft != nil{
+                //if matrix[colomns[colomnPos - step]]![pos + step] == turn{
+                if gameData.board[colomns[colomnPos - step]]![pos + step] == gameData.turn{
                     uphillCounter += 1
                     
                     //backgrounds[colomns[colomnPos - step]]![pos + step] = Selected.yes
